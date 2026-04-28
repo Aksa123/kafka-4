@@ -8,7 +8,7 @@ admin_conf = {
 admin = AdminClient(conf=admin_conf)
 
 
-topics = ['paytm_producs', 'paytm_categories', 'flip_users']
+topics = ['paytm_products', 'paytm_categories', 'flip_users']
 topics_obj = []
 for t in topics:
     topic_conf = {
