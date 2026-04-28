@@ -31,7 +31,7 @@ def start():
     topics = get_topics_by_regex(r=pattern)
     consumer = generate_consumer()
     consumer.subscribe(topics=topics)
-    print('subscribing to ', topics)
+    print('subscribing to:', topics)
 
     while True:
         try:
@@ -47,7 +47,9 @@ def start():
                         topics = new_relevant_topics
                         print('resubscribing...')
                         consumer.subscribe(topics)
-                        print('new subscription topics', topics )
+                        print('new subscription topics:', topics )
+                    else:
+                        print('no new topics...')
                 
                 elif val == TRIGGER_CODE_LIST_TOPICS:
                     print('topic list', topics)
@@ -58,6 +60,8 @@ def start():
                     break
 
                 elif val == TRIGGER_CODE_FLUSH:
+                    if not queue:
+                        continue
                     bulk_text = ""
                     for c,i in enumerate(queue, start=1):
                         bulk_text += (str(c) + '. ' + i + '\n')

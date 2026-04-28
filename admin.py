@@ -18,10 +18,14 @@ for t in topics:
     topics_obj.append(obj)
 
 # Trigger topic msg is removed every 10s 
-topics_obj.append(NewTopic('trigger', config={
-        'cleanup.policy': 'delete',
-        'retention.ms': 10000
-    }))
+topics_obj.append(
+    NewTopic('trigger', 
+             config={
+                    'cleanup.policy': 'delete',
+                    'retention.ms': 10000
+            },
+            num_partitions=1
+    ))
 
 if __name__ == '__main__':
     admin.create_topics(new_topics=topics_obj, operation_timeout=10, request_timeout=5)
