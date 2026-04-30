@@ -1,20 +1,29 @@
+from argparse import ArgumentParser
+from settings import admin, BOOTSTRAP_SERVERS
 from confluent_kafka.admin import NewTopic
-from settings import admin
+from confluent_kafka import Producer
 from loggers import logger
-from utils import create_trigger_topic
-
-
-topics = ['paytm_products', 'paytm_categories', 'flip_users']
-topics_obj = []
-for t in topics:
-    topic_conf = {
-        'cleanup.policy': 'delete',
-    }
-    obj = NewTopic(t, config=topic_conf)
-    topics_obj.append(obj)
+from concurrent.futures import wait
 
 
 if __name__ == '__main__':
-    create_trigger_topic()
-    admin.create_topics(new_topics=topics_obj, operation_timeout=10, request_timeout=5)
-    logger.info(admin.list_topics().topics)
+
+    parser = ArgumentParser()
+    parser.add_argument('--create-topic', type=str, required=False)
+    parser.add_argument('--partitions', type=int, default=-1)
+    parser.add_argument('--list-topic', const=True, nargs='?', required=False)
+    args = parser.parse_args()
+
+    prod = Producer({'bootstrap.servers': BOOTSTRAP_SERVERS})
+    if args.create_topic:
+        conf = {'cleanup.policy': 'delete'}
+        new = NewTopic(args.create_topic, num_partitions=args.partitions, config=conf)
+        ftr = admin.create_topics(new_topics=[new,], operation_timeout=10, request_timeout=5)
+        # .create_topics return futures, must wait
+        for t, f in ftr.items(): 
+            wait([f])
+        logger.info(f'topic {args.create_topic} created!')
+        
+    if args.list_topic:
+        topics = admin.list_topics().topics
+        logger.info(f'topics list: {[i for i in topics]}')

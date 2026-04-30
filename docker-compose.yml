@@ -20,21 +20,21 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 10
 
-  admin:
+  init:
     build: .
-    container_name: admin
+    container_name: init
     volumes:
       - ./code:/app/code/
     env_file:
       - .env
     environment:
       - IS_DOCKER=1
-      - GROUP_INSTANCE_ID=admin
+      - GROUP_INSTANCE_ID=init
       - BOOTSTRAP_SERVERS=broker:9095
     depends_on:
       - broker
     working_dir: /app/code
-    command: ["python3", "admin.py"]
+    command: ["python3", "init.py"]
 
   cronjob:
     build: .
@@ -50,7 +50,7 @@ services:
     depends_on:
       broker:
         condition: service_started
-      admin:
+      init:
         condition: service_completed_successfully
     working_dir: /app/code
     command: ["python3", "cronjob.py"]
@@ -69,7 +69,7 @@ services:
     depends_on:
       broker:
         condition: service_started
-      admin:
+      init:
         condition: service_completed_successfully
     working_dir: /app/code
     command: ["python3", "consumer.py"]
@@ -88,7 +88,7 @@ services:
     depends_on:
       broker:
         condition: service_started
-      admin:
+      init:
         condition: service_completed_successfully
     working_dir: /app/code
     command: ["python3", "consumer.py"]

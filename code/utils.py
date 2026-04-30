@@ -16,9 +16,8 @@ def create_trigger_topic():
             config={
                 'cleanup.policy': 'delete',
                 'retention.ms': 10000,
-                'segment.ms': 60000
-        },
-        num_partitions=TRIGGER_PARTITIONS    # As many as the consumer nodes
+                'segment.ms': 60000},
+            num_partitions=TRIGGER_PARTITIONS    # As many as the consumer nodes
     )
     admin.create_topics([t])
     
