@@ -4,16 +4,91 @@ services:
     container_name: kafka-broker
     ports:
       - "9094:9094"
+    expose:
+      - 9095
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093,EXTERNAL://:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENERS: PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093,EXTERNAL://:9094,DOCKER://broker:9095
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://localhost:9094,DOCKER://broker:9095
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_NUM_PARTITIONS: 10
+
+  admin:
+    build: .
+    container_name: admin
+    volumes:
+      - ./code:/app/code/
+    env_file:
+      - .env
+    environment:
+      - IS_DOCKER=1
+      - GROUP_INSTANCE_ID=admin
+      - BOOTSTRAP_SERVERS=broker:9095
+    depends_on:
+      - broker
+    working_dir: /app/code
+    command: ["python3", "admin.py"]
+
+  cronjob:
+    build: .
+    container_name: cronjob
+    volumes:
+      - ./code:/app/code/
+    env_file:
+      - .env
+    environment:
+      - IS_DOCKER=1
+      - GROUP_INSTANCE_ID=cronjob
+      - BOOTSTRAP_SERVERS=broker:9095
+    depends_on:
+      broker:
+        condition: service_started
+      admin:
+        condition: service_completed_successfully
+    working_dir: /app/code
+    command: ["python3", "cronjob.py"]
+
+  consumer-1:
+    build: .
+    container_name: consumer-1
+    volumes:
+      - ./code:/app/code/
+    env_file:
+      - .env
+    environment:
+      - IS_DOCKER=1
+      - GROUP_INSTANCE_ID=axa-1
+      - BOOTSTRAP_SERVERS=broker:9095
+    depends_on:
+      broker:
+        condition: service_started
+      admin:
+        condition: service_completed_successfully
+    working_dir: /app/code
+    command: ["python3", "consumer.py"]
+
+  consumer-2:
+    build: .
+    container_name: consumer-2
+    volumes:
+      - ./code:/app/code/
+    env_file:
+      - .env
+    environment:
+      - IS_DOCKER=1
+      - GROUP_INSTANCE_ID=axa-2
+      - BOOTSTRAP_SERVERS=broker:9095
+    depends_on:
+      broker:
+        condition: service_started
+      admin:
+        condition: service_completed_successfully
+    working_dir: /app/code
+    command: ["python3", "consumer.py"]

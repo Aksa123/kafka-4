@@ -1,7 +1,9 @@
 from confluent_kafka import Consumer
 from collections import deque
-from settings import BOOTSTRAP_SERVERS, TRIGGER_CODE_CHECK_NEW_TOPICS, TRIGGER_CODE_LIST_TOPICS, TRIGGER_CODE_FLUSH, TRIGGER_CODE_CLOSE
-from admin import admin
+from settings import BOOTSTRAP_SERVERS, GROUP_ID, GROUP_INSTANCE_ID,\
+                 TRIGGER_CODE_CHECK_NEW_TOPICS, TRIGGER_CODE_LIST_TOPICS, TRIGGER_CODE_FLUSH, TRIGGER_CODE_CLOSE
+from utils import get_topics_by_regex
+from loggers import logger
 import re
 
 
@@ -10,20 +12,13 @@ queue = deque()
 def generate_consumer():
     conf = {
         'bootstrap.servers': BOOTSTRAP_SERVERS,
-        'group.id': 'axa',
-        'group.instance.id': 'axa-1',
-        'enable.auto.commit': 'true',
-        'auto.offset.reset': 'latest'
+        'group.id': GROUP_ID,
+        'group.instance.id': GROUP_INSTANCE_ID,
+        'enable.auto.commit': 'false',
+        'auto.offset.reset': 'earliest'
     }
     consumer = Consumer(conf)
     return consumer
-
-
-def get_topics_by_regex(r: str):
-    topics_all =  [i for i in admin.list_topics().topics]
-    topics_paytm = list(filter(lambda n: re.match(r, n), topics_all)) 
-    topics_paytm.extend(['trigger'])
-    return topics_paytm
 
 
 def start():
@@ -31,7 +26,7 @@ def start():
     topics = get_topics_by_regex(r=pattern)
     consumer = generate_consumer()
     consumer.subscribe(topics=topics)
-    print('subscribing to:', topics)
+    logger.info(f'subscribing to: {topics}')
 
     while True:
         try:
@@ -45,31 +40,33 @@ def start():
                     new_relevant_topics = get_topics_by_regex(r=pattern)
                     if len(new_relevant_topics) > len(topics):
                         topics = new_relevant_topics
-                        print('resubscribing...')
+                        logger.info('resubscribing...')
                         consumer.subscribe(topics)
-                        print('new subscription topics:', topics )
+                        logger.info(f'new subscription topics: {topics}' )
                     else:
-                        print('no new topics...')
+                        logger.info('no new topics...')
                 
                 elif val == TRIGGER_CODE_LIST_TOPICS:
-                    print('topic list', topics)
+                    logger.info('topic list', topics)
                 
                 elif val == TRIGGER_CODE_CLOSE:
-                    print('shutting down gracefully...')
+                    logger.info('shutting down gracefully...')
                     consumer.close()
                     break
 
                 elif val == TRIGGER_CODE_FLUSH:
                     if not queue:
+                        consumer.commit()
                         continue
-                    bulk_text = ""
+                    bulk_text = f"{GROUP_INSTANCE_ID}\n"
                     for c,i in enumerate(queue, start=1):
                         bulk_text += (str(c) + '. ' + i + '\n')
-                    print(bulk_text)
+                    logger.info(bulk_text)
                     queue.clear()
+                    consumer.commit()   # Acknowledge messages after successful flush
                 
                 else:
-                    print(f'invalid trigger code: {val}')
+                    logger.info(f'invalid trigger code: {val}')
                 
             else:
                 text = msg.topic() + ' - ' + msg.value().decode()
@@ -80,4 +77,5 @@ def start():
             break
 
 if __name__ == '__main__':
+    logger.info(f'<< starting consumer {GROUP_INSTANCE_ID} >>')
     start()

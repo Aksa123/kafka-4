@@ -1,0 +1,36 @@
+from confluent_kafka.admin import AdminClient
+from dotenv import dotenv_values
+from pathlib import Path
+import os
+
+BASE_PATH = Path(__file__).parent.parent
+IS_DOCKER = os.getenv('IS_DOCKER', '0') == '1'
+
+LIMIT_LOG_WRITES_PER_HOUR = 60
+LOG_FILE_PATH = BASE_PATH / 'app.log'
+
+if IS_DOCKER:
+    BOOTSTRAP_SERVERS = os.getenv('BOOTSTRAP_SERVERS')    # must be comma-separated
+    GROUP_ID = os.getenv('GROUP_ID')
+    GROUP_INSTANCE_ID = os.getenv('GROUP_INSTANCE_ID')
+
+    TRIGGER_CODE_CHECK_NEW_TOPICS = os.getenv('TRIGGER_CODE_CHECK_NEW_TOPICS')
+    TRIGGER_CODE_LIST_TOPICS = os.getenv('TRIGGER_CODE_LIST_TOPICS')
+    TRIGGER_CODE_CLOSE = os.getenv('TRIGGER_CODE_CLOSE')
+    TRIGGER_CODE_FLUSH = os.getenv('TRIGGER_CODE_FLUSH')
+
+else:
+    ENV = dotenv_values(BASE_PATH / '.env')
+    BOOTSTRAP_SERVERS = ENV['BOOTSTRAP_SERVERS']    # must be comma-separated
+    GROUP_ID = ENV['GROUP_ID']
+    GROUP_INSTANCE_ID = ENV['GROUP_INSTANCE_ID']
+
+    TRIGGER_CODE_CHECK_NEW_TOPICS = ENV['TRIGGER_CODE_CHECK_NEW_TOPICS']
+    TRIGGER_CODE_LIST_TOPICS = ENV['TRIGGER_CODE_LIST_TOPICS']
+    TRIGGER_CODE_CLOSE = ENV['TRIGGER_CODE_CLOSE']
+    TRIGGER_CODE_FLUSH = ENV['TRIGGER_CODE_FLUSH']
+
+admin_conf = {
+    'bootstrap.servers': BOOTSTRAP_SERVERS
+}
+admin = AdminClient(conf=admin_conf)
