@@ -3,7 +3,7 @@ from settings import admin, BOOTSTRAP_SERVERS
 from confluent_kafka.admin import NewTopic
 from confluent_kafka import Producer
 from loggers import logger
-from concurrent.futures import wait
+from utils import create_topics_and_wait
 
 
 if __name__ == '__main__':
@@ -18,10 +18,7 @@ if __name__ == '__main__':
     if args.create_topic:
         conf = {'cleanup.policy': 'delete'}
         new = NewTopic(args.create_topic, num_partitions=args.partitions, config=conf)
-        ftr = admin.create_topics(new_topics=[new,], operation_timeout=10, request_timeout=5)
-        # .create_topics return futures, must wait
-        for t, f in ftr.items(): 
-            wait([f])
+        create_topics_and_wait(new_topics=[new])
         logger.info(f'topic {args.create_topic} created!')
         
     if args.list_topic:
