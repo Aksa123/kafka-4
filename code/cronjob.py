@@ -14,7 +14,7 @@ if __name__ == '__main__':
         relevant_topics = get_topics_by_regex()
         new_topics = list(filter(lambda x: x not in topics, relevant_topics))
         if new_topics:
-            logger.info('new topics detected! sending trigger msg...')
+            logger.info('New topics detected! Sending trigger msg...')
             send_trigger_message(TRIGGER_CODE_CHECK_NEW_TOPICS)
             topics = relevant_topics
         

@@ -26,7 +26,7 @@ def start():
     topics = get_topics_by_regex(r=pattern)
     consumer = generate_consumer()
     consumer.subscribe(topics=topics)
-    logger.info(f'subscribing to: {topics}')
+    logger.info(f'Consumer {GROUP_INSTANCE_ID} subscribing to: {topics}')
 
     while True:
         try:
@@ -40,17 +40,17 @@ def start():
                     new_relevant_topics = get_topics_by_regex(r=pattern)
                     if len(new_relevant_topics) > len(topics):
                         topics = new_relevant_topics
-                        logger.info('resubscribing...')
+                        logger.info('Resubscribing...')
                         consumer.subscribe(topics)
-                        logger.info(f'new subscription topics: {topics}' )
+                        logger.info(f'New subscription topics: {topics}' )
                     else:
-                        logger.info('no new topics...')
+                        logger.info('No new topics...')
                 
                 elif val == TRIGGER_CODE_LIST_TOPICS:
-                    logger.info('topic list', topics)
+                    logger.info('Topic list', topics)
                 
                 elif val == TRIGGER_CODE_CLOSE:
-                    logger.info('shutting down gracefully...')
+                    logger.info('Shutting down gracefully...')
                     consumer.close()
                     break
 
@@ -66,7 +66,7 @@ def start():
                     consumer.commit()   # Acknowledge messages after successful flush
                 
                 else:
-                    logger.info(f'invalid trigger code: {val}')
+                    logger.info(f'Invalid trigger code: {val}')
                 
             else:
                 text = msg.topic() + ' - ' + msg.value().decode()
@@ -77,5 +77,5 @@ def start():
             break
 
 if __name__ == '__main__':
-    logger.info(f'<< starting consumer {GROUP_INSTANCE_ID} >>')
+    logger.info(f'<< Starting consumer {GROUP_INSTANCE_ID} >>')
     start()
