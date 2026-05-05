@@ -20,6 +20,24 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 10
 
+  postgres:
+    image: postgres:17.5-bullseye
+    container_name: postgres
+    ports:
+      - 5437:5432
+    expose:
+      - 5432
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+      
   init:
     build: .
     container_name: init
@@ -31,8 +49,12 @@ services:
       - IS_DOCKER=1
       - GROUP_INSTANCE_ID=init
       - BOOTSTRAP_SERVERS=broker:9095
+      - DB_HOST=postgres
     depends_on:
-      - broker
+      broker:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     working_dir: /app/code
     command: ["python3", "init.py"]
 
@@ -47,6 +69,7 @@ services:
       - IS_DOCKER=1
       - GROUP_INSTANCE_ID=cronjob
       - BOOTSTRAP_SERVERS=broker:9095
+      - DB_HOST=postgres
     depends_on:
       broker:
         condition: service_started
@@ -66,6 +89,7 @@ services:
       - IS_DOCKER=1
       - GROUP_INSTANCE_ID=axa-1
       - BOOTSTRAP_SERVERS=broker:9095
+      - DB_HOST=postgres
     depends_on:
       broker:
         condition: service_started
@@ -85,6 +109,7 @@ services:
       - IS_DOCKER=1
       - GROUP_INSTANCE_ID=axa-2
       - BOOTSTRAP_SERVERS=broker:9095
+      - DB_HOST=postgres
     depends_on:
       broker:
         condition: service_started

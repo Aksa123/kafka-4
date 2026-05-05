@@ -1,9 +1,11 @@
 from confluent_kafka import Consumer
+from psycopg.sql import SQL, Identifier, Placeholder
 from collections import deque
 from settings import BOOTSTRAP_SERVERS, GROUP_ID, GROUP_INSTANCE_ID,\
                  TRIGGER_CODE_CHECK_NEW_TOPICS, TRIGGER_CODE_LIST_TOPICS, TRIGGER_CODE_FLUSH, TRIGGER_CODE_CLOSE
-from utils import get_topics_by_regex
+from utils import get_topics_by_regex, generate_query, create_schema_if_not_exists, create_table_if_not_exists
 from loggers import logger
+from connections import conn_pg
 import re
 
 
@@ -33,10 +35,13 @@ def start():
             msg = consumer.poll()
             if not msg:
                 continue
+            
+            topic = msg.topic()
+            value = msg.value().decode()
+
             # Handle consumer by trigger message value
-            elif msg.topic() == 'trigger':
-                val = msg.value().decode()
-                if val == TRIGGER_CODE_CHECK_NEW_TOPICS:
+            if topic == 'trigger':
+                if value == TRIGGER_CODE_CHECK_NEW_TOPICS:
                     new_relevant_topics = get_topics_by_regex(r=pattern)
                     if len(new_relevant_topics) > len(topics):
                         topics = new_relevant_topics
@@ -46,31 +51,33 @@ def start():
                     else:
                         logger.info('No new topics...')
                 
-                elif val == TRIGGER_CODE_LIST_TOPICS:
+                elif value == TRIGGER_CODE_LIST_TOPICS:
                     logger.info('Topic list', topics)
                 
-                elif val == TRIGGER_CODE_CLOSE:
+                elif value == TRIGGER_CODE_CLOSE:
                     logger.info('Shutting down gracefully...')
                     consumer.close()
                     break
 
-                elif val == TRIGGER_CODE_FLUSH:
+                elif value == TRIGGER_CODE_FLUSH:
                     if not queue:
                         consumer.commit()
                         continue
-                    bulk_text = f"{GROUP_INSTANCE_ID}\n"
-                    for c,i in enumerate(queue, start=1):
-                        bulk_text += (str(c) + '. ' + i + '\n')
-                    logger.info(bulk_text)
+                    
+                    conn_pg.execute_pipeline(queue)
+                    
+                    # text = 'Flushed:\n' + '\n'.join([v['json_data'] for k,v in queue])
+                    # logger.info(text)
+                
                     queue.clear()
                     consumer.commit()   # Acknowledge messages after successful flush
-                
                 else:
-                    logger.info(f'Invalid trigger code: {val}')
-                
+                    logger.info(f'Invalid trigger code: {value}')
+            
             else:
-                text = msg.topic() + ' - ' + msg.value().decode()
-                queue.append(text)
+                table_name = re.sub('[\.-]', '_', topic)
+                query = generate_query(table_name, value)
+                queue.append(query)
 
         except KeyboardInterrupt:
             consumer.close()

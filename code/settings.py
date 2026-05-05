@@ -24,6 +24,12 @@ TRIGGER_CODE_LIST_TOPICS = env_getter('TRIGGER_CODE_LIST_TOPICS')
 TRIGGER_CODE_CLOSE = env_getter('TRIGGER_CODE_CLOSE')
 TRIGGER_CODE_FLUSH = env_getter('TRIGGER_CODE_FLUSH')
 
+DB_HOST = env_getter('DB_HOST')
+DB_PORT = int(env_getter('DB_PORT'))
+DB_NAME = env_getter('DB_NAME')
+DB_USER = env_getter('DB_USER')
+DB_PASSWORD = env_getter('DB_PASSWORD')
+
 admin_conf = {
     'bootstrap.servers': BOOTSTRAP_SERVERS
 }
