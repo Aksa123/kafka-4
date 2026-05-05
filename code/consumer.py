@@ -3,9 +3,10 @@ from psycopg.sql import SQL, Identifier, Placeholder
 from collections import deque
 from settings import BOOTSTRAP_SERVERS, GROUP_ID, GROUP_INSTANCE_ID,\
                  TRIGGER_CODE_CHECK_NEW_TOPICS, TRIGGER_CODE_LIST_TOPICS, TRIGGER_CODE_FLUSH, TRIGGER_CODE_CLOSE
-from utils import get_topics_by_regex, generate_query, create_schema_if_not_exists, create_table_if_not_exists
+from utils import get_topics_by_regex, generate_query
 from loggers import logger
 from connections import conn_pg
+import json
 import re
 
 
@@ -22,6 +23,23 @@ def generate_consumer():
     consumer = Consumer(conf)
     return consumer
 
+
+def validate_json(data: str) -> bool:
+    try:
+        json.loads(data)
+        return True
+    except Exception as err:
+        return False
+
+
+def flush_to_db():
+    if not queue:
+        return
+    conn_pg.execute_pipeline(queue)
+    text = 'Flushed:\n' + '\n'.join([v['json_data'] for k,v in queue])
+    logger.info(text)
+    queue.clear()
+    
 
 def start():
     pattern = r'^paytm_.*'
@@ -46,8 +64,11 @@ def start():
                     if len(new_relevant_topics) > len(topics):
                         topics = new_relevant_topics
                         logger.info('Resubscribing...')
+                        flush_to_db()
+                        consumer.commit()
                         consumer.subscribe(topics)
                         logger.info(f'New subscription topics: {topics}' )
+                        continue
                     else:
                         logger.info('No new topics...')
                 
@@ -56,28 +77,27 @@ def start():
                 
                 elif value == TRIGGER_CODE_CLOSE:
                     logger.info('Shutting down gracefully...')
+                    flush_to_db()
+                    consumer.commit()
                     consumer.close()
                     break
 
                 elif value == TRIGGER_CODE_FLUSH:
-                    if not queue:
-                        consumer.commit()
-                        continue
+                    flush_to_db()
                     
-                    conn_pg.execute_pipeline(queue)
-                    
-                    # text = 'Flushed:\n' + '\n'.join([v['json_data'] for k,v in queue])
-                    # logger.info(text)
-                
-                    queue.clear()
-                    consumer.commit()   # Acknowledge messages after successful flush
                 else:
                     logger.info(f'Invalid trigger code: {value}')
             
             else:
-                table_name = re.sub('[\.-]', '_', topic)
+                if not validate_json(value):
+                    consumer.commit()
+                    logger.warning('Data is not JSON-formatted')
+                    continue
+                table_name = re.sub(r'[\s\.-]+', '_',  topic)    # Replace dot and dash with underscore
                 query = generate_query(table_name, value)
                 queue.append(query)
+            
+            consumer.commit()
 
         except KeyboardInterrupt:
             consumer.close()
