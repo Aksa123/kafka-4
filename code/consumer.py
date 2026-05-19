@@ -6,6 +6,7 @@ from settings import BOOTSTRAP_SERVERS, GROUP_ID, GROUP_INSTANCE_ID,\
 from utils import get_topics_by_regex, generate_query
 from loggers import logger
 from connections import conn_pg
+from external.slack import slack_pusher
 import json
 import re
 
@@ -100,8 +101,15 @@ def start():
             consumer.commit()
 
         except KeyboardInterrupt:
+            flush_to_db()
+            consumer.commit()
             consumer.close()
             break
+
+        except Exception as err:
+            logger.error(err)
+            slack_pusher.notify_slack(f"Kafka Consumer Error: \n{err}")
+            
 
 if __name__ == '__main__':
     logger.info(f'<< Starting consumer {GROUP_INSTANCE_ID} >>')

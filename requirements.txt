@@ -1,7 +1,14 @@
+certifi==2026.4.22
+charset-normalizer==3.4.7
 confluent-kafka==2.14.0
+idna==3.13
 kafka-python==2.3.1
 kafka-python3==3.0.0
 psycopg==3.3.3
 psycopg-binary==3.3.3
+pyaml==26.2.1
 python-dotenv==1.2.2
+PyYAML==6.0.3
+requests==2.33.1
 typing_extensions==4.15.0
+urllib3==2.6.3

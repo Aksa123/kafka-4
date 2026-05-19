@@ -2,17 +2,33 @@ import os
 import json
 import logging
 import requests
+import yaml
+from loggers import logger
+from datetime import datetime, timedelta
 
-logger = logging.getLogger(__name__)
 
 SLACK_CONN_ID = "dte-slack-alert"
 
 DEFAULT_CHANNEL_ID = "C0AA30YR10R"
 
-# Service configuration (set these via Kubernetes env vars / secrets)
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")         
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")             
-SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID", DEFAULT_CHANNEL_ID)
+# Read from /var/secrets/data.yaml (GSM-mounted) once at import time.
+# Env vars take precedence so local testing can override.
+_YAML_SECRETS = {}
+try:
+    with open("/var/secrets/data.yaml", "r") as _f:
+        _YAML_SECRETS = (yaml.safe_load(_f) or {}).get("secrets", {}) or {}
+except FileNotFoundError:
+    logger.warning("/var/secrets/data.yaml not found; falling back to env vars for Slack creds.")
+except Exception as _e:
+    logger.warning(f"Failed reading /var/secrets/data.yaml for Slack creds: {_e}")
+
+def _resolve(key: str, default: str | None = None) -> str | None:
+    return os.getenv(key) or _YAML_SECRETS.get(key) or default
+
+SLACK_WEBHOOK_URL = _resolve("SLACK_WEBHOOK_URL")
+SLACK_BOT_TOKEN = _resolve("SLACK_BOT_TOKEN")
+SLACK_CHANNEL_ID = _resolve("SLACK_CHANNEL_ID", DEFAULT_CHANNEL_ID)
+
 
 def notify_slack(
     text: str,
@@ -59,3 +75,24 @@ def notify_slack(
 
     except Exception as e:
         logger.error(f"Slack notify exception: {e}")
+
+
+class SlackPusher:
+    def __init__(self, interval: int = 300):
+        self.interval = timedelta(seconds=interval)
+        self.last_push = datetime(year=2020, month=1, day=1)
+    
+    def limiter_decorator(func):
+        def inner(self, *args, **kwargs):
+            dt = datetime.now()
+            if dt > self.last_push + self.interval:
+                self.last_push = dt
+                res = func(self, *args, **kwargs)
+                return res
+        return inner
+    
+    @limiter_decorator
+    def notify_slack(self, text, *args, channel_id):
+        return notify_slack(text=text, *args, channel_id=channel_id)
+
+slack_pusher = SlackPusher()

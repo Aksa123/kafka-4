@@ -9,16 +9,17 @@ from settings import LOG_FILE_PATH, LIMIT_LOG_WRITES_PER_HOUR
 wib_tz = timezone(timedelta(hours=7), name='Asia/Jakarta, WIB')
 
 class LoggerFile(Logger):
-    def __init__(self, name: str, level = 20, handlers=[]) -> None:
+    def __init__(self, name: str, level: int = 20, handlers: list[Handler] = [], limit_hourly_writes: int = LIMIT_LOG_WRITES_PER_HOUR) -> None:
         super().__init__(name, level)
         for h in handlers: super().addHandler(h)
         self.counter = 0
         self.counter_date = datetime.now(tz=wib_tz)
+        self.limit_hourly_writes = limit_hourly_writes
 
     # Limit log writes
     def check_counter(func):
         def inner(self, msg, stacklevel=3, exc_info=True):
-            if self.counter < LIMIT_LOG_WRITES_PER_HOUR :
+            if self.counter < self.limit_hourly_writes :
                 self.counter += 1
                 return func(self, msg, stacklevel=stacklevel, exc_info=exc_info)
             elif self.counter_date + timedelta(hours=1) <= datetime.now(tz=wib_tz):

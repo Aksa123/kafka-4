@@ -46,7 +46,7 @@ class DBConnection:
                         return res
                     # Only retry for connection-specific issues e.g. OperationalError
                     except (psycopg.errors.OperationalError, psycopg.errors.InternalError) as operr:
-                        logger.error(f'error occurred. reconnecting database and retrying transaction... ( {i} / {count} )')
+                        logger.error(f'Error occurred. Reconnecting database and retrying transaction... ( {i} / {count} )')
                         sleep(delay)
                         try:
                             self.reconnect()
@@ -54,7 +54,7 @@ class DBConnection:
                         except psycopg.errors.OperationalError:
                             pass
                         last_err = operr
-                logger.error('retry attempt limit reached >_>')
+                logger.error('Retry attempt limit reached.')
                 raise last_err
             return inner
         return outer

@@ -10,17 +10,18 @@ if __name__ == '__main__':
     topics = get_topics_by_regex()
     
     while True:
-        prod = Producer({'bootstrap.servers': BOOTSTRAP_SERVERS})
-        relevant_topics = get_topics_by_regex()
-        new_topics = list(filter(lambda x: x not in topics, relevant_topics))
-        if new_topics:
-            create_schema_if_not_exists()
-            for nt in new_topics: create_table_if_not_exists(nt)
+        try:
+            relevant_topics = get_topics_by_regex()
+            new_topics = list(filter(lambda x: x not in topics, relevant_topics))
+            if new_topics:
+                create_schema_if_not_exists()
+                for nt in new_topics: create_table_if_not_exists(nt)
 
-            logger.info('New topics detected! Sending trigger msg...')
-            send_trigger_message(TRIGGER_CODE_CHECK_NEW_TOPICS)
-            topics = relevant_topics
-        
-        send_trigger_message(TRIGGER_CODE_FLUSH)
-
-        sleep(INTERVAL)
+                logger.info('New topics detected! Sending trigger msg...')
+                send_trigger_message(TRIGGER_CODE_CHECK_NEW_TOPICS)
+                topics = relevant_topics
+            
+            send_trigger_message(TRIGGER_CODE_FLUSH)
+            sleep(INTERVAL)
+        except Exception as err:
+            logger.error(err)

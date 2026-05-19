@@ -13,7 +13,7 @@ if IS_DOCKER:
     env_getter = os.getenv
 else:
     ENV = dotenv_values(BASE_PATH / '.env')
-    env_getter = lambda key,default=None : ENV[key] if key in ENV else default
+    env_getter = ENV.get
 
 BOOTSTRAP_SERVERS = env_getter('BOOTSTRAP_SERVERS')    # must be comma-separated
 GROUP_ID = env_getter('GROUP_ID')
